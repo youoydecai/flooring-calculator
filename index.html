@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flooring Container Loading Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #f0f2f5; }
+        .card { background: #fff; border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .card-title { font-weight: 700; font-size: 0.9rem; color: #1f2937; margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid #e5e7eb; }
+        .field { margin-bottom: 0.5rem; }
+        .field label { display: block; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.15rem; }
+        .field input { width: 100%; padding: 0.35rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.85rem; box-sizing: border-box; }
+        .field input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+        .field .hint { font-size: 0.65rem; color: #9ca3af; margin-top: 0.1rem; }
+        .btn-primary { background: #2563eb; color: #fff; padding: 0.65rem; border: none; border-radius: 0.5rem; font-size: 0.95rem; font-weight: 700; cursor: pointer; width: 100%; transition: background 0.15s; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-sm { font-size: 0.7rem; padding: 0.2rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; background: #f9fafb; cursor: pointer; color: #6b7280; }
+        .btn-sm:hover { background: #e5e7eb; }
+        .result-card { background: #fff; border-radius: 0.75rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .result-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.75rem; color: #1f2937; }
+        .result-row { display: flex; justify-content: space-between; padding: 0.35rem 0; border-bottom: 1px solid #f3f4f6; font-size: 0.85rem; }
+        .result-row .label { color: #6b7280; }
+        .result-row .value { font-weight: 600; color: #1f2937; }
+        .warning-box { padding: 0.6rem 0.8rem; border-radius: 0.5rem; margin-bottom: 0.5rem; font-size: 0.82rem; }
+        .warning-box.error { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
+        .warning-box.warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; }
+        .warning-box.success { background: #f0fdf4; border-left: 4px solid #22c55e; color: #166534; }
+        .viewer-box { background: #fff; border-radius: 0.75rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); position: relative; }
+        .viewer-header { padding: 0.5rem 1rem; background: #f9fafb; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+        .viewer-header h3 { font-size: 0.85rem; font-weight: 600; color: #374151; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="bg-white shadow-sm px-4 py-2.5 flex items-center justify-between sticky top-0 z-50">
+        <h1 class="text-base font-bold text-gray-800" data-i18n="app_title">Flooring Container Loading Calculator</h1>
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400">v4.0</span>
+            <button id="btn_lang" onclick="toggleLanguage()" class="btn-sm">中文</button>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 py-3">
+        <!-- Input + Results Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+
+            <!-- ===== INPUT AREA (left) ===== -->
+            <div class="lg:col-span-4 xl:col-span-3">
+
+                <!-- Floor Params -->
+                <div class="card">
+                    <div class="card-title" data-i18n="card_floor">Floor Tile Parameters</div>
+                    <div class="grid grid-cols-2 gap-x-2">
+                        <div class="field">
+                            <label data-i18n="floor_length">Tile Length (mm)</label>
+                            <input type="number" id="floor_length" value="1210" min="1">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="floor_width">Tile Width (mm)</label>
+                            <input type="number" id="floor_width" value="183" min="1">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="floor_thickness">Tile Thickness (mm)</label>
+                            <input type="number" id="floor_thickness" value="4" min="0.1" step="0.1">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="floor_density">Density (g/cm³)</label>
+                            <input type="number" id="floor_density" value="1.95" min="0.01" step="0.01">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Box Params -->
+                <div class="card">
+                    <div class="card-title" data-i18n="card_box">Packaging (Box) Parameters</div>
+                    <div class="grid grid-cols-2 gap-x-2">
+                        <div class="field">
+                            <label data-i18n="box_length">Box Length (mm)</label>
+                            <input type="number" id="box_length" value="1214" min="1">
+                            <div class="hint" data-i18n="box_auto_hint">= tile size + 4mm</div>
+                        </div>
+                        <div class="field">
+                            <label data-i18n="box_width">Box Width (mm)</label>
+                            <input type="number" id="box_width" value="187" min="1">
+                            <div class="hint" data-i18n="box_auto_hint">= tile size + 4mm</div>
+                        </div>
+                        <div class="field">
+                            <label data-i18n="pieces_per_box">Pieces Per Box</label>
+                            <input type="number" id="pieces_per_box" value="10" min="1">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="packing_allowance">Packing Allowance (mm)</label>
+                            <input type="number" id="packing_allowance" value="4" min="0">
+                        </div>
+                    </div>
+                    <button class="btn-sm mt-1" onclick="resetBoxDefaults()" data-i18n="btn_reset_box">Reset to Default</button>
+                </div>
+
+                <!-- Pallet Params -->
+                <div class="card">
+                    <div class="card-title" data-i18n="card_pallet">Pallet Parameters</div>
+                    <div class="grid grid-cols-2 gap-x-2">
+                        <div class="field">
+                            <label data-i18n="pallet_length">Pallet Length (mm)</label>
+                            <input type="number" id="pallet_length" value="1220" min="1">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="pallet_width">Pallet Width (mm)</label>
+                            <input type="number" id="pallet_width" value="840" min="1">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="pallet_height">Pallet Height (mm)</label>
+                            <input type="number" id="pallet_height" value="150" min="0">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="pallet_self_weight">Pallet Weight (kg)</label>
+                            <input type="number" id="pallet_self_weight" value="27" min="0" step="0.1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gap Params -->
+                <div class="card">
+                    <div class="card-title" data-i18n="card_gaps">Gap Parameters</div>
+                    <div class="grid grid-cols-3 gap-x-2">
+                        <div class="field">
+                            <label data-i18n="box_gap">Box Gap (mm)</label>
+                            <input type="number" id="box_gap" value="0" min="0">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="pallet_gap">Pallet Gap (mm)</label>
+                            <input type="number" id="pallet_gap" value="50" min="0">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="wall_gap">Wall Gap (mm)</label>
+                            <input type="number" id="wall_gap" value="30" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Limits -->
+                <div class="card">
+                    <div class="card-title" data-i18n="card_limits">Constraints</div>
+                    <div class="grid grid-cols-2 gap-x-2">
+                        <div class="field">
+                            <label data-i18n="box_weight_limit">Box Weight Limit (kg)</label>
+                            <input type="number" id="box_weight_limit" value="25" min="0" step="0.1">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="pallet_weight_limit">Pallet Weight Limit (kg)</label>
+                            <input type="number" id="pallet_weight_limit" value="1000" min="0">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="container_weight_limit">Container Limit (kg)</label>
+                            <input type="number" id="container_weight_limit" value="22000" min="0">
+                        </div>
+                        <div class="field">
+                            <label data-i18n="safe_height">Safe Height (mm)</label>
+                            <input type="number" id="safe_height" value="2100" min="1">
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <label class="text-xs text-gray-500 font-semibold" data-i18n="container_size">20ft Container Interior</label>
+                        <div class="grid grid-cols-3 gap-x-2 mt-1">
+                            <div class="field">
+                                <label data-i18n="container_l">Length (mm)</label>
+                                <input type="number" id="container_l" value="5898" min="1">
+                            </div>
+                            <div class="field">
+                                <label data-i18n="container_w">Width (mm)</label>
+                                <input type="number" id="container_w" value="2352" min="1">
+                            </div>
+                            <div class="field">
+                                <label data-i18n="container_h">Height (mm)</label>
+                                <input type="number" id="container_h" value="2393" min="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ===== RESULTS + 3D AREA (right) ===== -->
+            <div class="lg:col-span-8 xl:col-span-9">
+
+                <!-- Calculate Button -->
+                <button class="btn-primary mb-3" onclick="doCalculate()" data-i18n="btn_calculate">Calculate</button>
+
+                <!-- Warnings -->
+                <div id="warnings_area"></div>
+
+                <!-- Results Row -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                    <!-- Box Result -->
+                    <div class="result-card" id="result_box">
+                        <div class="result-title" data-i18n="result_box">📦 Box Info</div>
+                        <div id="result_box_content">
+                            <div class="text-sm text-gray-400 text-center py-4">—</div>
+                        </div>
+                    </div>
+                    <!-- Pallet Result -->
+                    <div class="result-card" id="result_pallet">
+                        <div class="result-title" data-i18n="result_pallet">🔲 Pallet Info</div>
+                        <div id="result_pallet_content">
+                            <div class="text-sm text-gray-400 text-center py-4">—</div>
+                        </div>
+                    </div>
+                    <!-- Container Result -->
+                    <div class="result-card" id="result_container">
+                        <div class="result-title" data-i18n="result_container">🚛 Container Info</div>
+                        <div id="result_container_content">
+                            <div class="text-sm text-gray-400 text-center py-4">—</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3D Views Row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <!-- Pallet 3D -->
+                    <div class="viewer-box">
+                        <div class="viewer-header">
+                            <h3 data-i18n="view_pallet">Pallet 3D View</h3>
+                            <button class="btn-sm" onclick="resetPalletCamera()" data-i18n="btn_reset_view">Reset View</button>
+                        </div>
+                        <div id="pallet_viewer" style="height: 400px;"></div>
+                    </div>
+                    <!-- Container 3D -->
+                    <div class="viewer-box">
+                        <div class="viewer-header">
+                            <h3 data-i18n="view_container">Container 3D View</h3>
+                            <button class="btn-sm" onclick="resetContainerCamera()" data-i18n="btn_reset_view">Reset View</button>
+                        </div>
+                        <div id="container_viewer" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./calc.js"></script>
+    <script src="./i18n.js"></script>
+    <script src="./viewer3d.js"></script>
+    <script src="./app.js"></script>
+</body>
+</html>
